@@ -2,6 +2,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.TreeSet;
+import java.util.Set;
 
 public class GuardTask {
     final static AtomicInteger nextId = new AtomicInteger(-1);
@@ -20,6 +21,8 @@ public class GuardTask {
     final AtomicBoolean check3 = new AtomicBoolean(false);
 
     final TreeSet<Guard> guards_held;
+
+    final static ThreadLocal<Set<Guard>> GUARDS_HELD = new ThreadLocal();
 
     private Runnable r;
     final boolean cleanup;
@@ -45,15 +48,13 @@ public class GuardTask {
         assert check2.compareAndSet(false, true) : "Rerun of Guard Task";
         assert check1.compareAndSet(false, true);
         int id = ThreadID.get();
-        System.out.printf("->start %s %d %s %s%n",this,id,guards_held,cleanup);
         assert guard.locked.compareAndSet(false,true) : String.format("%s %d %d",this,ThreadID.get(),guards_held.size());
         if(cleanup) for(Guard g : guards_held) assert g.id <= guard.id : "Not last";
-        if(cleanup) System.out.println(" g1->"+GuardCheck.guards);
-        if(cleanup) for(Guard g : guards_held) GuardCheck.checkLock(g,id);
+        if(cleanup) GUARDS_HELD.set(guards_held);
+        //if(cleanup) for(Guard g : guards_held) GuardCheck.checkLock(g,id);
         Run.run(r);
         activeCount.getAndDecrement();
-        if(cleanup) for(Guard g : guards_held) GuardCheck.checkUnlock(g,id);
-        if(cleanup) System.out.println(" g2->"+GuardCheck.guards);
+        //if(cleanup) for(Guard g : guards_held) GuardCheck.checkUnlock(g,id);
     }
     public void run() {
         run_();
@@ -68,18 +69,15 @@ public class GuardTask {
         assert check1.compareAndSet(true, false) : "End without start";
         assert check3.compareAndSet(false, true) : "Double cleanup";
         assert guard.locked.compareAndSet(true,false);
-        System.out.printf("->end   %s %d %s %s%n",this,id,guards_held,cleanup);
         return next;
     }
     private void endRun_() {
         var n = finish();
         while(!n.compareAndSet(null,DONE)) {
             final GuardTask gt = n.get();
-            System.out.printf("5>> %s %s %d%n",gt,gt.guard,ThreadID.get());
             gt.run_();
             if(!gt.cleanup) return;
             n = gt.finish();
-            System.out.printf("loop: %s%n", n);
             //n = gt.next;
             //if(m % 1000 == 999) System.out.println("m="+m);
             //m++;

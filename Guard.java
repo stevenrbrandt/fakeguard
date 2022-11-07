@@ -26,12 +26,9 @@ public class Guard implements Comparable<Guard> {
         assert gtask.cleanup;
         var prev = next.getAndSet(gtask);
         if(prev == null) {
-            System.out.printf("1>> %s %d%n",this,ThreadID.get());
             gtask.run();
         } else {
-            System.out.printf("order: %s -> %s%n",prev,gtask);
             if(!prev.next.compareAndSet(null,gtask)) {
-                System.out.printf("2>> %s %d%n",this,ThreadID.get());
                 gtask.run();
             }
         }
@@ -44,14 +41,13 @@ public class Guard implements Comparable<Guard> {
     }
 
     private void startGuarded(GuardTask gtask) {
+        //System.out.println("startGuarded: "+gtask);
         assert !gtask.cleanup;
         var prev = next.getAndSet(gtask);
         if(prev == null) {
-            System.out.printf("3>> %s %d%n",this,ThreadID.get());
             gtask.run();
         } else {
             if(!prev.next.compareAndSet(null,gtask)) {
-                System.out.printf("4>> %s %d%n",this,ThreadID.get());
                 gtask.run();
             }
         }
@@ -106,57 +102,61 @@ public class Guard implements Comparable<Guard> {
         }
     }
 
-    public static void runTree(Runnable r,final Guard g1,final Guard g2,final Guard g3) {
-        TreeSet<Guard> ts = new TreeSet<>();
-        ts.add(g1);
-        ts.add(g2);
-        ts.add(g3);
-        runGuardedAll(r,ts);
+    public static void runTree(Runnable r,final Guard... garray) {
+        if(garray.length==0) {
+            Run.run(r);
+        } else if(garray.length == 1) {
+            garray[0].runGuarded(r);
+        } else {
+            TreeSet<Guard> ts = new TreeSet<>();
+            for(Guard g : garray)
+                ts.add(g);
+            runGuardedAll(r,ts);
+        }
     }
 
     public static void runGuardedAll(Runnable r,TreeSet<Guard> ts) {
         assert ts.size() > 1;
-        //ist<Guard> lig = new ArrayList<>();
-        //lig.addAll(ts);
-        //assert lig.size() == ts.size();
-        //TreeSet<Guard> guards_held = new TreeSet<>();
-        //List<GuardTask> ligt = new ArrayList<>();
-        /*
+        List<Guard> lig = new ArrayList<>();
+        lig.addAll(ts);
+        assert lig.size() == ts.size();
+        TreeSet<Guard> guards_held = ts;//new TreeSet<>();
+        List<GuardTask> ligt = new ArrayList<>();
         for(int i=0;i<lig.size();i++) {
             ligt.add(new GuardTask(lig.get(i),guards_held));
         }
-        for(int i=0;i<lig.size()-1;i++)
+        // Guards are correctly ordered
+        int last = lig.size()-1;
+        for(int i=0;i<last;i++)
             assert lig.get(i).compareTo(lig.get(i+1)) < 0;
         assert ligt.size() == ts.size();
         // last task
-        ligt.get(ligt.size()-1).setRun(()->{
-            lig.get(lig.size()-1).runGuarded(()->{
+        //System.out.println("add last: "+(last-1)+" "+lig.get(last-1));
+        ligt.get(last-1).setRun(()->{
+            //System.out.println("run pstep: "+(last-1));
+            lig.get(last).runGuarded(()->{
+                //System.out.println("run last: "+last+" "+lig.get(last)+" "+guards_held);
                 Run.run(r);
                 // last to run unlocks everything
-                for(int i=0;i<ligt.size()-1;i++) {
+                for(int i=0;i<last;i++) {
                     ligt.get(i).endRun();
                 }
             },guards_held);
         });
         // prior tasks, each calls the next
-        for(int i=0;i<ligt.size()-1;i++) {
+        for(int i=0;i<last-1;i++) {
+            final int step = i;
+            final int next = i+1;
             final var guard = lig.get(i);
-            final var guardTaskNext = ligt.get(i+1);
-            ligt.get(i).setRun(()->{
-                guard.startGuarded(guardTaskNext);
+            final var guardTask = ligt.get(i);
+            final var guardNext = lig.get(next);
+            final var guardTaskNext = ligt.get(next);
+            //System.out.println("add step: "+step+" "+guardTask);
+            guardTask.setRun(()->{
+                //System.out.println("run step: "+step+"->"+next+" "+guard+" -> "+guardNext+" "+guards_held);
+                guardNext.startGuarded(guardTaskNext);
             });
         }
-        */
-    }
-
-    final public void checkLock() {
-        //System.out.println("Lock of "+this+" by "+ThreadID.get());
-        //assert checker.compareAndSet(false,true) : "Failure in acquiring guard";
-        //GuardCheck.checkLock(this);
-    }
-    final public void checkUnlock() {
-        //System.out.println("Unlock of "+this+" by "+ThreadID.get());
-        //assert checker.compareAndSet(true,false) : "Failure in releasing guard";
-        //GuardCheck.checkUnlock(this);
+        lig.get(0).startGuarded(ligt.get(0));
     }
 }

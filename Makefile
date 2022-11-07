@@ -1,5 +1,6 @@
 all : Guard.class
-	bash ./x.sh
+	#bash ./x.sh
+	java -ea Main
 
 Guard.class : *.java
 	javac *.java

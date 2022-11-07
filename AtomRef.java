@@ -15,11 +15,9 @@ public class AtomRef<T> {
         count++;
         assert count <= 2 : "Only 2 violated";
         if(data == oldval) {
-            System.out.printf("AtomRef(%d) -> true%n",id);
             data = newval;
             return true;
         } else {
-            System.out.printf("AtomRef(%d) -> false%n",id);
             return false;
         }
     }
