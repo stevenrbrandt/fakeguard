@@ -12,8 +12,8 @@ public class GuardTask {
     final static GuardTask DONE = new GuardTask(null,()->{
         assert false : "DONE should not be executed";
     },null);
-    //final AtomicReference<GuardTask> next = new AtomicReference<>();
-    final AtomRef<GuardTask> next = new AtomRef<>();
+    final AtomicReference<GuardTask> next = new AtomicReference<>();
+    //final AtomRef<GuardTask> next = new AtomRef<>();
 
     final TreeSet<Guard> guards_held;
 
@@ -56,20 +56,15 @@ public class GuardTask {
         assert !cleanup : "Manual cleanup on GuardTask set to auto clean";
         endRun_();
     }
-    private AtomRef<GuardTask> finish() {
-        assert guard.locked.compareAndSet(true,false);
-        return next;
-    }
     private void endRun_() {
-        var n = finish();
+        assert guard.locked.compareAndSet(true,false);
+        var n = next;
         while(!n.compareAndSet(null,DONE)) {
             final GuardTask gt = n.get();
             gt.run_();
             if(!gt.cleanup) return;
-            n = gt.finish();
-            //n = gt.next;
-            //if(m % 1000 == 999) System.out.println("m="+m);
-            //m++;
+            assert gt.guard.locked.compareAndSet(true,false);
+            n = gt.next;
         }
     }
 }
