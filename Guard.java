@@ -121,21 +121,24 @@ public class Guard implements Comparable<Guard> {
 
     public static void runGuarded(Runnable r,TreeSet<Guard> ts) {
         assert ts.size() > 1;
+
         List<Guard> lig = new ArrayList<>();
         lig.addAll(ts);
+
         assert lig.size() == ts.size();
-        TreeSet<Guard> guards_held = ts;//new TreeSet<>();
+
+        TreeSet<Guard> guards_held = new TreeSet<>();
+        guards_held.addAll(ts);
+
         List<GuardTask> ligt = new ArrayList<>();
-        for(int i=0;i<lig.size();i++) {
+        for(int i=0;i<lig.size();i++)
             ligt.add(new GuardTask(lig.get(i),guards_held));
-        }
-        // Guards are correctly ordered
+        
         int last = lig.size()-1;
-        for(int i=0;i<last;i++)
-            assert lig.get(i).compareTo(lig.get(i+1)) < 0;
         assert ligt.size() == ts.size();
-        // last task
+        // setup the next to last task
         ligt.get(last-1).setRun(()->{
+            // set up the last task
             lig.get(last).runGuarded_(()->{
                 Run.run(r);
                 // last to run unlocks everything
@@ -156,6 +159,7 @@ public class Guard implements Comparable<Guard> {
                 guardNext.startGuarded(guardTaskNext);
             });
         }
+        // kick the whole thing off
         lig.get(0).startGuarded(ligt.get(0));
     }
 }

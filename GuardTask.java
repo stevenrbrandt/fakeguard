@@ -13,7 +13,6 @@ public class GuardTask {
         assert false : "DONE should not be executed";
     },null);
     final AtomicReference<GuardTask> next = new AtomicReference<>();
-    //final AtomRef<GuardTask> next = new AtomRef<>();
 
     final TreeSet<Guard> guards_held;
 
@@ -37,7 +36,6 @@ public class GuardTask {
         this.r = r;
     }
     private void run_() {
-        assert this != DONE : "DONE should not be executed";
         int id = ThreadID.get();
         assert guard.locked.compareAndSet(false,true) : String.format("%s %d %d",this,ThreadID.get(),guards_held.size());
         if(cleanup) {
