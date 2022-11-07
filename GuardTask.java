@@ -16,10 +16,6 @@ public class GuardTask {
     //final AtomicReference<GuardTask> next = new AtomicReference<>();
     final AtomRef<GuardTask> next = new AtomRef<>();
 
-    final AtomicBoolean check1 = new AtomicBoolean(false);
-    final AtomicBoolean check2 = new AtomicBoolean(false);
-    final AtomicBoolean check3 = new AtomicBoolean(false);
-
     final TreeSet<Guard> guards_held;
 
     final static ThreadLocal<Set<Guard>> GUARDS_HELD = new ThreadLocal<>();
@@ -45,16 +41,12 @@ public class GuardTask {
     }
     private void run_() {
         assert this != DONE : "DONE should not be executed";
-        assert check2.compareAndSet(false, true) : "Rerun of Guard Task";
-        assert check1.compareAndSet(false, true);
         int id = ThreadID.get();
         assert guard.locked.compareAndSet(false,true) : String.format("%s %d %d",this,ThreadID.get(),guards_held.size());
         if(cleanup) for(Guard g : guards_held) assert g.id <= guard.id : "Not last";
         if(cleanup) GUARDS_HELD.set(guards_held);
-        //if(cleanup) for(Guard g : guards_held) GuardCheck.checkLock(g,id);
         Run.run(r);
         activeCount.getAndDecrement();
-        //if(cleanup) for(Guard g : guards_held) GuardCheck.checkUnlock(g,id);
     }
     public void run() {
         run_();
@@ -66,8 +58,6 @@ public class GuardTask {
         endRun_();
     }
     private AtomRef<GuardTask> finish() {
-        assert check1.compareAndSet(true, false) : "End without start";
-        assert check3.compareAndSet(false, true) : "Double cleanup";
         assert guard.locked.compareAndSet(true,false);
         return next;
     }
