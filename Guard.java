@@ -13,7 +13,6 @@ public class Guard implements Comparable<Guard> {
     public int compareTo(Guard g) {
         return this.id - g.id;
     }
-    //final AtomicReference<GuardTask> next = new AtomicReference<>();
     final AtomRef<GuardTask> next = new AtomRef<>();
 
     public void runGuarded(Runnable r) {
@@ -35,7 +34,7 @@ public class Guard implements Comparable<Guard> {
         }
     }
 
-    public void startGuarded(Runnable r,TreeSet<Guard> guards_held) {
+    private void startGuarded(Runnable r,TreeSet<Guard> guards_held) {
         GuardTask gtask = new GuardTask(this, guards_held);
         gtask.setRun(r);
         startGuarded(gtask);
@@ -54,6 +53,7 @@ public class Guard implements Comparable<Guard> {
         }
     }
 
+    /*
     public static void runGuarded(Runnable r,final Guard g1,final Guard g2) {
         if(g1.compareTo(g2) > 0) {
             runGuarded(r,g2,g1);
@@ -72,7 +72,9 @@ public class Guard implements Comparable<Guard> {
             g1.startGuarded(gtask1);
         }
     }
+    */
 
+    /*
     public static void runGuarded(Runnable r,final Guard g1,final Guard g2,final Guard g3) {
         if(g1.compareTo(g2) > 0) {
             runGuarded(r,g2,g1,g3);
@@ -102,6 +104,7 @@ public class Guard implements Comparable<Guard> {
             g1.startGuarded(gtask1);
         }
     }
+    */
 
     public static void runGuarded(Runnable r,final Guard... garray) {
         if(garray.length==0) {
