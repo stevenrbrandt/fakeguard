@@ -7,15 +7,18 @@ import java.util.ArrayList;
 
 public class Guard implements Comparable<Guard> {
     final static AtomicInteger nextId = new AtomicInteger(0);
+    final AtomicBoolean locked = new AtomicBoolean(false);
     final int id = nextId.getAndIncrement();
-    public String toString() { return "g["+id+"]"; }
+    public String toString() { return "g["+id+","+(locked.get() ? "T":"F")+"]"; }
     public int compareTo(Guard g) {
         return this.id - g.id;
     }
-    final AtomicReference<GuardTask> next = new AtomicReference<>();
+    //final AtomicReference<GuardTask> next = new AtomicReference<>();
+    final AtomRef<GuardTask> next = new AtomRef<>();
 
     public void runGuarded(Runnable r) {
         TreeSet<Guard> guards_held = new TreeSet<>();
+        guards_held.add(this);
         runGuarded(r,guards_held);
     }
     private void runGuarded(Runnable r,TreeSet<Guard> guards_held) {
@@ -23,9 +26,12 @@ public class Guard implements Comparable<Guard> {
         assert gtask.cleanup;
         var prev = next.getAndSet(gtask);
         if(prev == null) {
+            System.out.printf("1>> %s %d%n",this,ThreadID.get());
             gtask.run();
         } else {
+            System.out.printf("order: %s -> %s%n",prev,gtask);
             if(!prev.next.compareAndSet(null,gtask)) {
+                System.out.printf("2>> %s %d%n",this,ThreadID.get());
                 gtask.run();
             }
         }
@@ -41,9 +47,11 @@ public class Guard implements Comparable<Guard> {
         assert !gtask.cleanup;
         var prev = next.getAndSet(gtask);
         if(prev == null) {
+            System.out.printf("3>> %s %d%n",this,ThreadID.get());
             gtask.run();
         } else {
             if(!prev.next.compareAndSet(null,gtask)) {
+                System.out.printf("4>> %s %d%n",this,ThreadID.get());
                 gtask.run();
             }
         }
@@ -55,6 +63,8 @@ public class Guard implements Comparable<Guard> {
         } else {
             assert g1.compareTo(g2) < 0 : "Not sorted";
             TreeSet<Guard> gh = new TreeSet<>();
+            gh.add(g1);
+            gh.add(g2);
             final GuardTask gtask1 = new GuardTask(g1,gh);
             gtask1.setRun(()->{
                 g2.runGuarded(()->{
@@ -77,6 +87,9 @@ public class Guard implements Comparable<Guard> {
             assert g1.compareTo(g2) < 0;
             assert g2.compareTo(g3) < 0;
             TreeSet<Guard> gh = new TreeSet<>();
+            gh.add(g1);
+            gh.add(g2);
+            gh.add(g3);
             final GuardTask gtask1 = new GuardTask(g1,gh);
             final GuardTask gtask2 = new GuardTask(g2,gh);
             gtask2.setRun(()->{
@@ -103,19 +116,22 @@ public class Guard implements Comparable<Guard> {
 
     public static void runGuardedAll(Runnable r,TreeSet<Guard> ts) {
         assert ts.size() > 1;
-        List<Guard> lig = new ArrayList<>();
-        lig.addAll(ts);
-        assert lig.size() == ts.size();
-        TreeSet<Guard> guards_held = new TreeSet<>();
-        List<GuardTask> ligt = new ArrayList<>();
+        //ist<Guard> lig = new ArrayList<>();
+        //lig.addAll(ts);
+        //assert lig.size() == ts.size();
+        //TreeSet<Guard> guards_held = new TreeSet<>();
+        //List<GuardTask> ligt = new ArrayList<>();
+        /*
         for(int i=0;i<lig.size();i++) {
             ligt.add(new GuardTask(lig.get(i),guards_held));
         }
+        for(int i=0;i<lig.size()-1;i++)
+            assert lig.get(i).compareTo(lig.get(i+1)) < 0;
         assert ligt.size() == ts.size();
         // last task
         ligt.get(ligt.size()-1).setRun(()->{
             lig.get(lig.size()-1).runGuarded(()->{
-                r.run();
+                Run.run(r);
                 // last to run unlocks everything
                 for(int i=0;i<ligt.size()-1;i++) {
                     ligt.get(i).endRun();
@@ -130,16 +146,17 @@ public class Guard implements Comparable<Guard> {
                 guard.startGuarded(guardTaskNext);
             });
         }
+        */
     }
 
     final public void checkLock() {
         //System.out.println("Lock of "+this+" by "+ThreadID.get());
         //assert checker.compareAndSet(false,true) : "Failure in acquiring guard";
-        GuardCheck.checkLock(this);
+        //GuardCheck.checkLock(this);
     }
     final public void checkUnlock() {
         //System.out.println("Unlock of "+this+" by "+ThreadID.get());
         //assert checker.compareAndSet(true,false) : "Failure in releasing guard";
-        GuardCheck.checkUnlock(this);
+        //GuardCheck.checkUnlock(this);
     }
 }

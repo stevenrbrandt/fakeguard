@@ -1,4 +1,5 @@
 public class Main {
+    final static int nmax = 3*1;
     public static void main(String[] args) {
         try {
             main();
@@ -9,16 +10,17 @@ public class Main {
     }
     public static void main() throws Exception {
         Guard g = new Guard();
+        IntVar iv = new IntVar();
         g.runGuarded(()->{ System.out.println("Hello"); });
         GuardCheck.assertClean();
         g.runGuarded(()->{ System.out.println("World"); });
         GuardCheck.assertClean();
-        final int nmax = 3*1000;
         Runnable w = ()->{
             for(int i=0;i<nmax;i++) {
                 final int n = i;
                 g.runGuarded(()->{
                     if(n == nmax-1) System.out.println("Done");
+                    iv.incr();
                 });
             }
         };
@@ -36,6 +38,7 @@ public class Main {
         GuardCheck.assertClean();
 
         Guard g2 = new Guard();
+        IntVar iv2 = new IntVar();
 
         Guard.runGuarded(()->{ System.out.println("Two"); },g,g2);
         GuardCheck.assertClean();
@@ -50,6 +53,9 @@ public class Main {
                         hasRun = true;
                         //System.out.println("n="+n+" "+ThreadID.get());
                         if(n == nmax-1) System.out.println("Done2");
+                        if(n % 3 == 0) iv.incr();
+                        else if(n % 3 == 1) iv2.incr();
+                        else if(n % 3 == 2) { iv.incr(); iv2.incr(); }
                     }
                 };
                 if(n % 3 == 0)
@@ -74,11 +80,23 @@ public class Main {
         GuardCheck.assertClean();
 
         Guard g3 = new Guard();
+        IntVar iv3 = new IntVar();
         Runnable w3=()->{
             for(int i=0;i<nmax;i++) {
                 final int n = i;
                 final Runnable r = ()->{
                     if(n == nmax-1) System.out.println("Done3");
+                    if(n % 3 == 0) {
+                        iv.incr();
+                        iv2.incr();
+                    } else if(n % 3 == 1) {
+                        iv2.incr();
+                        iv3.incr();
+                    } else if(n % 3 == 2) {
+                        iv.incr();
+                        iv2.incr();
+                        iv3.incr();
+                    }
                 };
                 if(n % 3 == 0)
                     Guard.runGuarded(r,g,g2);
@@ -105,13 +123,15 @@ public class Main {
                 final int n = i;
                 final Runnable r = ()->{
                     if(n == nmax-1) System.out.println("Done4");
+                    iv2.incr();
                 };
                 if(n % 3 == 0)
                     Guard.runGuarded(r,g,g2);
                 else if(n % 3 == 1)
                     Guard.runGuarded(r,g2,g3);
                 else if(n % 3 == 2)
-                    Guard.runTree(r,g,g2,g3);
+                    ;//Guard.runGuarded(r,g,g3);
+                    ;//Guard.runTree(r,g,g2,g3);
             }
         };
 
@@ -124,5 +144,6 @@ public class Main {
             t1.join();
             t2.join();
         }
+        System.out.println("Test of tree guards complete");
     }
 }

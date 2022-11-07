@@ -4,31 +4,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.TreeSet;
 
 public class GuardTask {
+    final static AtomicInteger nextId = new AtomicInteger(-1);
+    final int id = nextId.getAndIncrement();
+    public String toString() { return "gt["+id+","+guard+","+next+"]"; }
     final static AtomicInteger activeCount = new AtomicInteger(-1);
     final Guard guard;
     final static GuardTask DONE = new GuardTask(null,()->{
         assert false : "DONE should not be executed";
     },null);
-    final AtomicReference<GuardTask> next = new AtomicReference<>();
+    //final AtomicReference<GuardTask> next = new AtomicReference<>();
+    final AtomRef<GuardTask> next = new AtomRef<>();
 
     final AtomicBoolean check1 = new AtomicBoolean(false);
     final AtomicBoolean check2 = new AtomicBoolean(false);
     final AtomicBoolean check3 = new AtomicBoolean(false);
 
     final TreeSet<Guard> guards_held;
-
-    void add_guard() {
-        synchronized(guards_held) {
-            assert !guards_held.contains(guard);
-            guards_held.add(guard);
-        }
-    }
-    void del_guard() {
-        synchronized(guards_held) {
-            assert guards_held.contains(guard);
-            guards_held.remove(guard);
-        }
-    }
 
     private Runnable r;
     final boolean cleanup;
@@ -37,7 +28,6 @@ public class GuardTask {
         cleanup = false;
         this.guards_held = guards_held;
         activeCount.getAndIncrement();
-        add_guard();
     }
     public GuardTask(Guard g,Runnable r,TreeSet<Guard> guards_held) {
         guard = g;
@@ -45,7 +35,6 @@ public class GuardTask {
         cleanup = true;
         this.guards_held = guards_held;
         activeCount.getAndIncrement();
-        if(g != null) add_guard();
     }
     public void setRun(Runnable r) {
         assert this.r == null;
@@ -55,13 +44,16 @@ public class GuardTask {
         assert this != DONE : "DONE should not be executed";
         assert check2.compareAndSet(false, true) : "Rerun of Guard Task";
         assert check1.compareAndSet(false, true);
-        int sz1 = guards_held.size();
-        if(cleanup) for(Guard g : guards_held) GuardCheck.checkLock(g);
+        int id = ThreadID.get();
+        System.out.printf("->start %s %d %s %s%n",this,id,guards_held,cleanup);
+        assert guard.locked.compareAndSet(false,true) : String.format("%s %d %d",this,ThreadID.get(),guards_held.size());
+        if(cleanup) for(Guard g : guards_held) assert g.id <= guard.id : "Not last";
+        if(cleanup) System.out.println(" g1->"+GuardCheck.guards);
+        if(cleanup) for(Guard g : guards_held) GuardCheck.checkLock(g,id);
         Run.run(r);
         activeCount.getAndDecrement();
-        int sz2 = guards_held.size();
-        if(cleanup) assert sz1 == sz2 : String.format("%d != %d",sz1,sz2);
-        if(cleanup) for(Guard g : guards_held) GuardCheck.checkUnlock(g);
+        if(cleanup) for(Guard g : guards_held) GuardCheck.checkUnlock(g,id);
+        if(cleanup) System.out.println(" g2->"+GuardCheck.guards);
     }
     public void run() {
         run_();
@@ -72,17 +64,23 @@ public class GuardTask {
         assert !cleanup : "Manual cleanup on GuardTask set to auto clean";
         endRun_();
     }
-    private void endRun_() {
+    private AtomRef<GuardTask> finish() {
         assert check1.compareAndSet(true, false) : "End without start";
         assert check3.compareAndSet(false, true) : "Double cleanup";
-        //del_guard();
-        AtomicReference<GuardTask> n = next;
-        //int m = 0;
+        assert guard.locked.compareAndSet(true,false);
+        System.out.printf("->end   %s %d %s %s%n",this,id,guards_held,cleanup);
+        return next;
+    }
+    private void endRun_() {
+        var n = finish();
         while(!n.compareAndSet(null,DONE)) {
             final GuardTask gt = n.get();
+            System.out.printf("5>> %s %s %d%n",gt,gt.guard,ThreadID.get());
             gt.run_();
             if(!gt.cleanup) return;
-            n = gt.next;
+            n = gt.finish();
+            System.out.printf("loop: %s%n", n);
+            //n = gt.next;
             //if(m % 1000 == 999) System.out.println("m="+m);
             //m++;
         }
