@@ -22,7 +22,7 @@ public class GuardTask {
 
     final TreeSet<Guard> guards_held;
 
-    final static ThreadLocal<Set<Guard>> GUARDS_HELD = new ThreadLocal();
+    final static ThreadLocal<Set<Guard>> GUARDS_HELD = new ThreadLocal<>();
 
     private Runnable r;
     final boolean cleanup;

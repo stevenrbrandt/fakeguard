@@ -2,7 +2,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.*;
 
 public class Main {
-    final static int nmax = 3*2;
+    final static int nmax = 3*20;
     final static Map<Integer,IntVar> intmap = new HashMap<>();
     final static AtomicInteger testCount = new AtomicInteger(0);
 
@@ -136,8 +136,8 @@ public class Main {
         }
         System.out.println("Test of three guards complete");
 
-        Guard.runTree(()->{System.out.println("RunTree(2)");},g,g2);
-        Guard.runTree(()->{System.out.println("RunTree(3)");},g,g2,g3);
+        Guard.runGuarded(()->{System.out.println("runGuarded(2)");},g,g2);
+        Guard.runGuarded(()->{System.out.println("runGuarded(3)");},g,g2,g3);
         //System.exit(0);
 
         Runnable w4=()->{
@@ -147,11 +147,11 @@ public class Main {
                     if(n == nmax-1) finalTest(4);
                 };
                 if(n % 3 == 0)
-                    Guard.runTree(r,g,g2);
+                    Guard.runGuarded(r,g,g2);
                 else if(n % 3 == 1)
-                    Guard.runTree(r,g2,g3);
+                    Guard.runGuarded(r,g2,g3);
                 else if(n % 3 == 2)
-                    Guard.runTree(r,g,g3);
+                    Guard.runGuarded(r,g,g3);
             }
         };
 
