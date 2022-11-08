@@ -136,22 +136,26 @@ public class Main {
         }
         System.out.println("Test of three guards complete");
 
-        Guard.runGuarded(()->{System.out.println("runGuarded(2)");},g,g2);
-        Guard.runGuarded(()->{System.out.println("runGuarded(3)");},g,g2,g3);
-        //System.exit(0);
-
+        Guard g4 = mkGuard();
         Runnable w4=()->{
             for(int i=0;i<nmax;i++) {
                 final int n = i;
                 final Runnable r = ()->{
+                    if(n % 3 == 0) {
+                        incr(g); incr(g2); incr(g3);
+                    } else if(n % 3 == 1) {
+                        incr(g2); incr(g3); incr(g4);
+                    } else if(n % 3 == 2) {
+                        incr(g); incr(g2); incr(g3); incr(g4);
+                    }
                     if(n == nmax-1) finalTest(4);
                 };
                 if(n % 3 == 0)
-                    Guard.runGuarded(r,g,g2);
+                    Guard.runGuarded(r,g,g2,g3);
                 else if(n % 3 == 1)
-                    Guard.runGuarded(r,g2,g3);
+                    Guard.runGuarded(r,g2,g3,g4);
                 else if(n % 3 == 2)
-                    Guard.runGuarded(r,g,g3);
+                    Guard.runGuarded(r,g,g2,g3,g4);
             }
         };
 

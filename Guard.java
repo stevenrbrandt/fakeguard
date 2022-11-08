@@ -53,7 +53,11 @@ public class Guard implements Comparable<Guard> {
         }
     }
 
-    /*
+    public static void runGuarded(Runnable r,final Guard g1) {
+        g1.runGuarded(r);
+    }
+
+    // This special case is not strictly necessry
     public static void runGuarded(Runnable r,final Guard g1,final Guard g2) {
         if(g1.compareTo(g2) > 0) {
             runGuarded(r,g2,g1);
@@ -72,8 +76,8 @@ public class Guard implements Comparable<Guard> {
             g1.startGuarded(gtask1);
         }
     }
-    */
 
+    // This special case is not strictly necessry
     /*
     public static void runGuarded(Runnable r,final Guard g1,final Guard g2,final Guard g3) {
         if(g1.compareTo(g2) > 0) {
@@ -106,6 +110,48 @@ public class Guard implements Comparable<Guard> {
     }
     */
 
+    /*
+    public static void runGuarded(Runnable r,Guard g1_,Guard g2_,Guard g3_,Guard g4_) {
+        if(g1_.compareTo(g2_) > 0) { var t = g1_; g1_ = g2_; g2_ = t; }
+        if(g1_.compareTo(g3_) > 0) { var t = g1_; g1_ = g3_; g3_ = t; }
+        if(g1_.compareTo(g4_) > 0) { var t = g1_; g1_ = g4_; g4_ = t; }
+        if(g2_.compareTo(g3_) > 0) { var t = g2_; g2_ = g3_; g3_ = t; }
+        if(g2_.compareTo(g4_) > 0) { var t = g2_; g2_ = g4_; g4_ = t; }
+        if(g3_.compareTo(g4_) > 0) { var t = g3_; g3_ = g4_; g4_ = t; }
+        assert g1_.compareTo(g2_) < 0;
+        assert g2_.compareTo(g3_) < 0;
+        assert g3_.compareTo(g4_) < 0;
+        final Guard g1 = g1_;
+        final Guard g2 = g2_;
+        final Guard g3 = g3_;
+        final Guard g4 = g4_;
+        TreeSet<Guard> gh = new TreeSet<>();
+        gh.add(g1);
+        gh.add(g2);
+        gh.add(g3);
+        gh.add(g4);
+        final GuardTask gtask1 = new GuardTask(g1,gh);
+        final GuardTask gtask2 = new GuardTask(g2,gh);
+        final GuardTask gtask3 = new GuardTask(g3,gh);
+        gtask3.setRun(()->{
+            g4.runGuarded_(()->{
+                Run.run(r);
+                gtask3.endRun();
+                gtask2.endRun();
+                gtask1.endRun();
+            },gh);
+        });
+        gtask2.setRun(()->{
+            g3.startGuarded(gtask3);
+        });
+        gtask1.setRun(()->{
+            g2.startGuarded(gtask2);
+        });
+        g1.startGuarded(gtask1);
+    }
+    */
+
+    // Four or more guards
     public static void runGuarded(Runnable r,final Guard... garray) {
         if(garray.length==0) {
             Run.run(r);
@@ -151,7 +197,6 @@ public class Guard implements Comparable<Guard> {
         for(int i=0;i<last-1;i++) {
             final int step = i;
             final int next = i+1;
-            final var guard = lig.get(i);
             final var guardTask = ligt.get(i);
             final var guardNext = lig.get(next);
             final var guardTaskNext = ligt.get(next);
