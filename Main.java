@@ -1,4 +1,5 @@
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.*;
 
 public class Main {
@@ -40,7 +41,7 @@ public class Main {
                 final int n = i;
                 g.runGuarded(()->{
                     if(n == nmax-1) finalTest(1);
-                    intmap.get(g.id).incr();
+                    incr(g);
                 });
             }
         };
@@ -159,7 +160,7 @@ public class Main {
             }
         };
 
-        // Test three guards
+        // Test four guards
         {
             Thread t1 = new DieThread(w4);
             Thread t2 = new DieThread(w4);
@@ -168,8 +169,52 @@ public class Main {
             t1.join();
             t2.join();
         }
-        System.out.println("Test of tree guards complete");
+        System.out.println("Test of four guards complete");
         assert testCount.get() == 8;
+
+        List<IntVar> liv = new ArrayList<>();
+        List<Guard> livg = new ArrayList<>();
+        for(int i =0;i<60;i++) {
+            liv.add(new IntVar(i));
+            livg.add(new Guard());
+        }
+        AtomicInteger ai = new AtomicInteger();
+        Runnable w5 = ()->{
+            for(int i=0;i<nmax;i++) {
+                int n1 = ThreadLocalRandom.current().nextInt(liv.size());
+                int n2 = ThreadLocalRandom.current().nextInt(liv.size()-1);
+                if(n1 <= n2) n2++;
+                final Guard gu1 = livg.get(n1);
+                final Guard gu2 = livg.get(n2);
+                final IntVar i1 = liv.get(n1);
+                final IntVar i2 = liv.get(n2);
+                final Runnable r = ()->{
+                    int tmp = i1.get();
+                    i1.set(i2.get());
+                    i2.set(tmp);
+                    ai.getAndIncrement();
+                };
+                Guard.runGuarded(r,gu1,gu2);
+            }
+        };
+        List<Thread> threads = new ArrayList<>();
+        for(int i=0;i<5;i++) {
+            threads.add(new DieThread(w5));
+        }
+        for(Thread t : threads) t.start();
+        for(Thread t : threads) t.join();
+        while(ai.get() != nmax*threads.size())
+            Thread.sleep(1);
+        System.out.println(liv);
+        System.out.println("Done Test 5");
+        Set<Integer> ints = new HashSet<>();
+        for(IntVar iv : liv) {
+            int v = iv.get();
+            ints.add(v);
+        }
+        boolean found = false;
+        for(int i=0;i<liv.size();i++)
+            assert ints.contains(i);
         System.out.println("All tests complete");
     }
 }
